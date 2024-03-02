@@ -1,5 +1,7 @@
 package models
 
 const (
-	DefaultBufferSize = 64 * 1024
+	DefaultBufferSize = 64 * KB
+	KB                = 1024
+	MB                = 1024 * KB
 )

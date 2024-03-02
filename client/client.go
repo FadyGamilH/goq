@@ -2,8 +2,6 @@ package client
 
 import (
 	"bytes"
-	"io"
-	"log"
 
 	"github.com/FadyGamilH/goq/models"
 )
@@ -23,7 +21,6 @@ func NewGoq(servers_addrs []string) *GoQ {
 func (q *GoQ) Produce(msg []byte) error {
 	_, err := q.data.Write(msg)
 	if err != nil {
-		log.Printf("error producing msg : [%v]", string(msg))
 		return err
 	}
 	return nil
@@ -38,10 +35,6 @@ func (q *GoQ) Consume(buffer []byte) ([]byte, error) {
 	}
 	n, err := q.data.Read(buffer)
 	if err != nil {
-		if err == io.EOF {
-			return []byte{}, nil
-		}
-		log.Printf("error while consuming : [%v]", err)
 		return nil, err
 	}
 	return buffer[0:n], nil
