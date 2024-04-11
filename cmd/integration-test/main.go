@@ -78,5 +78,6 @@ func testConsume(q *client.GoQ) (int64, error) {
 			}
 			sum += int64(intVal)
 		}
+		b = make([]byte, models.MaxBatchSize)
 	}
 }

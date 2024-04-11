@@ -61,6 +61,7 @@ func (q *GoQ) Consume(buffer []byte) ([]byte, error) {
 	if numOfReadBytes == 0 && err == io.EOF {
 		return nil, io.EOF
 	}
+	// the only reason i slice the data from 0 to the numOfReadBytes + offsetOfLastByteIntoBuffer is because i don't need to depend on the user-code which will use this client pkg to reset the buffer before sending it to me in the next iteration, so i always specify the indecis of the current batch data so thats how we can ensure to not use any zeros or data from prev iteration while we process the current batch data
 	dataOfCurrBatch, dataForNextBatch, err := ConsumeMaxBatchSizeFromBuffer(buffer[0 : numOfReadBytes+offsetOfLastByteIntoBuffer])
 	if err != nil {
 		return nil, err
