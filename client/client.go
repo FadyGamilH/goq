@@ -2,6 +2,8 @@ package client
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 
 	"github.com/FadyGamilH/goq/models"
 )
@@ -35,9 +37,36 @@ func (q *GoQ) Consume(buffer []byte) ([]byte, error) {
 	if buffer == nil {
 		buffer = make([]byte, models.DefaultBufferSize)
 	}
-	n, err := q.Data.Read(buffer)
+	offsetOfLastByteIntoBuffer := 0
+	// check if there is any data couldn't be consumed from the prev batch
+	if q.DataFromPrevBatch.Len() > 0 {
+		// check if the data from the prev batch is bigger than the buffer that will be used to read the data on, so we will return an error
+		if q.DataFromPrevBatch.Len() > len(buffer) {
+			return nil, errors.New(models.ErrorBufferSmallerThanData)
+		}
+		// read the data from prev batch into the buffer and handle error
+		numOfReadBytes, err := q.DataFromPrevBatch.Read(buffer)
+		if err != nil {
+			return nil, fmt.Errorf("{%s} : %v", models.ErrorReadingDataFromBuffer, err)
+		}
+		offsetOfLastByteIntoBuffer += numOfReadBytes
+		// reset the DataFromPrevBatch buffer
+		q.DataFromPrevBatch.Reset()
+	}
+	// then read the new consumed batch into the buffer but from the offsetOfLastByteIntoBuffer to the end of the buffer
+	_, err := q.Data.Read(buffer[offsetOfLastByteIntoBuffer:])
+	if err != nil {
+		return nil, fmt.Errorf("{%s} : %v", models.ErrorReadingDataFromBuffer, err)
+	}
+	dataOfCurrBatch, dataForNextBatch, err := ConsumeMaxBatchSizeFromBuffer(buffer)
 	if err != nil {
 		return nil, err
 	}
-	return buffer[0:n], nil
+	q.DataFromPrevBatch.Reset()
+	q.DataFromPrevBatch.Write(dataForNextBatch)
+	return dataOfCurrBatch, nil
+}
+
+func ConsumeMaxBatchSizeFromBuffer(buffer []byte) (dataOfCurrBatch, dataForNextBatch []byte, err error) {
+
 }
