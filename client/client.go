@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/FadyGamilH/goq/models"
 )
@@ -28,8 +27,6 @@ func (q *GoQ) Produce(msg []byte) error {
 	if err != nil {
 		return err
 	}
-	log.Println("====> PRODUCED : ", (msg))
-	// log.Printf("current buffer length is : {%+v} and current buffer content is : {%s}\n", q.data.Len(), q.data.String())
 	return nil
 }
 
@@ -38,7 +35,7 @@ func (q *GoQ) Produce(msg []byte) error {
 // returns []bytes and error
 func (q *GoQ) Consume(buffer []byte) ([]byte, error) {
 	if buffer == nil {
-		buffer = make([]byte, models.DefaultBufferSize)
+		buffer = make([]byte, models.MaxBatchSize)
 	}
 	offsetOfLastByteIntoBuffer := 0
 	// check if there is any data couldn't be consumed from the prev batch
@@ -48,11 +45,10 @@ func (q *GoQ) Consume(buffer []byte) ([]byte, error) {
 			return nil, errors.New(models.ErrorBufferSmallerThanData)
 		}
 		// read the data from prev batch into the buffer and handle error
-		numOfReadBytes, err := q.DataFromPrevBatch.Read(buffer[0:])
+		numOfReadBytes, err := q.DataFromPrevBatch.Read(buffer)
 		if err != nil {
 			return nil, fmt.Errorf("{%s} : %v", models.ErrorReadingDataFromBuffer, err)
 		}
-		log.Println("=====> buffer after reading data from prev batch is : ", buffer)
 		offsetOfLastByteIntoBuffer += numOfReadBytes
 		// reset the DataFromPrevBatch buffer
 		q.DataFromPrevBatch.Reset()
@@ -65,7 +61,7 @@ func (q *GoQ) Consume(buffer []byte) ([]byte, error) {
 	if numOfReadBytes == 0 && err == io.EOF {
 		return nil, io.EOF
 	}
-	dataOfCurrBatch, dataForNextBatch, err := ConsumeMaxBatchSizeFromBuffer(buffer)
+	dataOfCurrBatch, dataForNextBatch, err := ConsumeMaxBatchSizeFromBuffer(buffer[0 : numOfReadBytes+offsetOfLastByteIntoBuffer])
 	if err != nil {
 		return nil, err
 	}

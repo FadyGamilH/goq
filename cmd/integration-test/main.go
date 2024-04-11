@@ -57,7 +57,7 @@ func testProduce(q *client.GoQ) (int64, error) {
 }
 
 func testConsume(q *client.GoQ) (int64, error) {
-	b := make([]byte, models.DefaultBufferSize)
+	b := make([]byte, models.MaxBatchSize)
 	sum := int64(0)
 	for {
 		res, err := q.Consume(b)

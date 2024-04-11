@@ -7,8 +7,6 @@ const (
 )
 
 const (
-	// maxGeneratedNums = 10000000
-	// maxBatchSize     = models.MB
-	MaxGeneratedNums = 200
-	MaxBatchSize     = 10
+	MaxGeneratedNums = 10000000
+	MaxBatchSize     = MB
 )
