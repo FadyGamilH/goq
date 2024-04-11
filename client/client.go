@@ -8,21 +8,23 @@ import (
 
 // This is the client program which can be connected to a set of GoQ servers (distributed)
 type GoQ struct {
-	addrs []string
-	data  bytes.Buffer
+	Addrs             []string
+	Data              bytes.Buffer
+	DataFromPrevBatch bytes.Buffer
 }
 
 func NewGoq(servers_addrs []string) *GoQ {
 	return &GoQ{
-		addrs: servers_addrs,
+		Addrs: servers_addrs,
 	}
 }
 
 func (q *GoQ) Produce(msg []byte) error {
-	_, err := q.data.Write(msg)
+	_, err := q.Data.Write(msg)
 	if err != nil {
 		return err
 	}
+	// log.Printf("current buffer length is : {%+v} and current buffer content is : {%s}\n", q.data.Len(), q.data.String())
 	return nil
 }
 
@@ -33,7 +35,7 @@ func (q *GoQ) Consume(buffer []byte) ([]byte, error) {
 	if buffer == nil {
 		buffer = make([]byte, models.DefaultBufferSize)
 	}
-	n, err := q.data.Read(buffer)
+	n, err := q.Data.Read(buffer)
 	if err != nil {
 		return nil, err
 	}
