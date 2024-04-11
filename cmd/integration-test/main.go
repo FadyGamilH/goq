@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,13 +9,7 @@ import (
 	"strings"
 
 	"github.com/FadyGamilH/goq/client"
-)
-
-const (
-	// maxGeneratedNums = 10000000
-	// maxBatchSize     = models.MB
-	maxGeneratedNums = 200
-	maxBatchSize     = 10
+	"github.com/FadyGamilH/goq/models"
 )
 
 func main() {
@@ -43,13 +36,13 @@ func main() {
 func testProduce(q *client.GoQ) (int64, error) {
 	b := &bytes.Buffer{}
 	sum := int64(0)
-	for i := 0; i <= maxGeneratedNums; i++ {
+	for i := 0; i <= models.MaxGeneratedNums; i++ {
 		sum += int64(i)
 		fmt.Fprintf(b, "%d\n", i)
 		// produce batch of data once we hit the maxBtachSize
-		if b.Len() >= maxBatchSize {
-			if err := q.Produce(b.Bytes()[0:maxBatchSize]); err != nil {
-				return 0, errors.New("ERROR_PRODUCING_DATA." + err.Error())
+		if b.Len() >= models.MaxBatchSize {
+			if err := q.Produce(b.Bytes()); err != nil {
+				return 0, err
 			}
 			b.Reset()
 		}
@@ -57,25 +50,23 @@ func testProduce(q *client.GoQ) (int64, error) {
 	// we still have data in the buffer but doesn't exceeds or equales the batchSize so these data aren't produced yet, so we need to produce them
 	if b.Len() != 0 {
 		if err := q.Produce(b.Bytes()); err != nil {
-			return 0, errors.New("ERROR_PRODUCING_DATA." + err.Error())
+			return 0, err
 		}
 	}
 	return sum, nil
 }
 
 func testConsume(q *client.GoQ) (int64, error) {
-	b := make([]byte, maxBatchSize)
+	b := make([]byte, models.DefaultBufferSize)
 	sum := int64(0)
 	for {
 		res, err := q.Consume(b)
-		if err != nil {
-			if err == io.EOF {
-				return sum, nil
-			}
-			return 0, errors.New("ERROR_CONSUME_DATA." + err.Error())
+		if err == io.EOF {
+			return sum, nil
+		} else if err != nil {
+			return 0, err
 		}
 		batchInStrings := strings.Split(string(res), "\n")
-		log.Println(batchInStrings)
 		for _, val := range batchInStrings {
 			// notice that the last item produced is produced like the following (val\n) so we have "" at the end we need to avoid converting to int64
 			if val == "" {

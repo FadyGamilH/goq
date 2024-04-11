@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 
 	"github.com/FadyGamilH/goq/models"
 )
@@ -26,6 +28,7 @@ func (q *GoQ) Produce(msg []byte) error {
 	if err != nil {
 		return err
 	}
+	log.Println("====> PRODUCED : ", (msg))
 	// log.Printf("current buffer length is : {%+v} and current buffer content is : {%s}\n", q.data.Len(), q.data.String())
 	return nil
 }
@@ -45,18 +48,22 @@ func (q *GoQ) Consume(buffer []byte) ([]byte, error) {
 			return nil, errors.New(models.ErrorBufferSmallerThanData)
 		}
 		// read the data from prev batch into the buffer and handle error
-		numOfReadBytes, err := q.DataFromPrevBatch.Read(buffer)
+		numOfReadBytes, err := q.DataFromPrevBatch.Read(buffer[0:])
 		if err != nil {
 			return nil, fmt.Errorf("{%s} : %v", models.ErrorReadingDataFromBuffer, err)
 		}
+		log.Println("=====> buffer after reading data from prev batch is : ", buffer)
 		offsetOfLastByteIntoBuffer += numOfReadBytes
 		// reset the DataFromPrevBatch buffer
 		q.DataFromPrevBatch.Reset()
 	}
 	// then read the new consumed batch into the buffer but from the offsetOfLastByteIntoBuffer to the end of the buffer
-	_, err := q.Data.Read(buffer[offsetOfLastByteIntoBuffer:])
-	if err != nil {
+	numOfReadBytes, err := q.Data.Read(buffer[offsetOfLastByteIntoBuffer:])
+	if err != nil && err != io.EOF {
 		return nil, fmt.Errorf("{%s} : %v", models.ErrorReadingDataFromBuffer, err)
+	}
+	if numOfReadBytes == 0 && err == io.EOF {
+		return nil, io.EOF
 	}
 	dataOfCurrBatch, dataForNextBatch, err := ConsumeMaxBatchSizeFromBuffer(buffer)
 	if err != nil {
@@ -68,5 +75,15 @@ func (q *GoQ) Consume(buffer []byte) ([]byte, error) {
 }
 
 func ConsumeMaxBatchSizeFromBuffer(buffer []byte) (dataOfCurrBatch, dataForNextBatch []byte, err error) {
-
+	if len(buffer) == 0 {
+		return buffer, nil, nil
+	}
+	if buffer[len(buffer)-1] == '\n' {
+		return buffer, nil, nil
+	}
+	lastSepartorIndex := bytes.LastIndexByte(buffer, '\n')
+	if lastSepartorIndex == -1 {
+		return nil, nil, errors.New(models.ErrorBufferSmallerThanData)
+	}
+	return buffer[0 : lastSepartorIndex+1], buffer[lastSepartorIndex+1:], nil
 }
